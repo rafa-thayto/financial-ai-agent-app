@@ -1,103 +1,319 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  MessageSquare,
+  Receipt,
+} from "lucide-react";
+import { format } from "date-fns";
+import { Transaction } from "@/lib/database";
+import Link from "next/link";
+import Chat from "@/components/chat";
+import FullscreenChat from "@/components/fullscreen-chat";
+
+interface DashboardStats {
+  totalIncome: number;
+  totalExpense: number;
+  balance: number;
+  transactionCount: number;
+  monthlyIncome: number;
+  monthlyExpense: number;
+}
+
+interface CategoryData {
+  category: string;
+  total: number;
+  count: number;
+}
+
+interface ChatMessage {
+  id: string;
+  type: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [totalIncome, setTotalIncome] = useState(0);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const balance = totalIncome - totalExpenses;
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const fetchTransactions = async () => {
+    try {
+      const response = await fetch("/api/transactions");
+      const data = await response.json();
+      setTransactions(data.transactions || []);
+
+      // Calculate totals
+      const income =
+        data.transactions
+          ?.filter((t: Transaction) => t.type === "income")
+          .reduce((sum: number, t: Transaction) => sum + t.amount, 0) || 0;
+
+      const expenses =
+        data.transactions
+          ?.filter((t: Transaction) => t.type === "expense")
+          .reduce((sum: number, t: Transaction) => sum + t.amount, 0) || 0;
+
+      setTotalIncome(income);
+      setTotalExpenses(expenses);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTransactionAdded = () => {
+    fetchTransactions();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-3 py-4 max-w-7xl">
+        {/* Header */}
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">
+            Finance Tracker
+          </h1>
+          <p className="text-sm text-gray-600">
+            AI-powered expense tracking and financial insights
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Financial Overview Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Balance</p>
+                  <p
+                    className={`text-lg font-bold ${
+                      balance >= 0 ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    ${balance.toFixed(2)}
+                  </p>
+                </div>
+                <DollarSign
+                  className={`h-6 w-6 ${
+                    balance >= 0 ? "text-green-500" : "text-red-500"
+                  }`}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600">
+                    Total Income
+                  </p>
+                  <p className="text-lg font-bold text-green-600">
+                    ${totalIncome.toFixed(2)}
+                  </p>
+                </div>
+                <TrendingUp className="h-6 w-6 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="sm:col-span-2 lg:col-span-1">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600">
+                    Total Expenses
+                  </p>
+                  <p className="text-lg font-bold text-red-600">
+                    ${totalExpenses.toFixed(2)}
+                  </p>
+                </div>
+                <TrendingDown className="h-6 w-6 text-red-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {/* Chat Interface */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center space-x-2">
+                    <MessageSquare className="h-4 w-4" />
+                    <span>AI Assistant</span>
+                    <Badge variant="secondary" className="text-xs">
+                      Smart
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Record transactions and get insights using natural language
+                  </CardDescription>
+                </div>
+                <FullscreenChat
+                  onTransactionAdded={handleTransactionAdded}
+                  triggerButtonText="Fullscreen"
+                  triggerButtonVariant="outline"
+                  triggerButtonSize="sm"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="h-[350px] sm:h-[400px] md:h-[450px] lg:h-[500px]">
+                <Chat onTransactionAdded={handleTransactionAdded} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Transaction History */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center space-x-2">
+                <Receipt className="h-4 w-4" />
+                <span>Recent Transactions</span>
+                <Badge variant="outline" className="text-xs">
+                  {transactions.length}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="h-[350px] sm:h-[400px] md:h-[450px] lg:h-[500px] overflow-y-auto p-3">
+                {transactions.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Receipt className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-sm font-medium">No transactions yet</p>
+                    <p className="text-xs">
+                      Start by adding transactions using the AI assistant!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {transactions.slice(0, 20).map((transaction) => (
+                      <div
+                        key={transaction.id}
+                        className="flex items-center justify-between p-2 sm:p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <div
+                              className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                transaction.type === "income"
+                                  ? "bg-green-500"
+                                  : "bg-red-500"
+                              }`}
+                            />
+                            <h3 className="font-medium text-xs sm:text-sm truncate">
+                              {transaction.description}
+                            </h3>
+                          </div>
+                          <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
+                            <Badge
+                              variant="secondary"
+                              className="text-xs px-1 py-0"
+                            >
+                              {transaction.category}
+                            </Badge>
+                            <span className="hidden sm:inline">•</span>
+                            <span className="hidden sm:inline">
+                              {new Date(transaction.date).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p
+                            className={`text-xs sm:text-sm font-semibold ${
+                              transaction.type === "income"
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {transaction.type === "income" ? "+" : "-"}$
+                            {transaction.amount.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-gray-500 capitalize">
+                            {transaction.type}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Stats */}
+        {transactions.length > 0 && (
+          <Card className="mt-4">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Quick Stats</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                <div>
+                  <p className="text-lg font-bold text-blue-600">
+                    {transactions.length}
+                  </p>
+                  <p className="text-xs text-gray-600">Total Transactions</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-green-600">
+                    {transactions.filter((t) => t.type === "income").length}
+                  </p>
+                  <p className="text-xs text-gray-600">Income Entries</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-red-600">
+                    {transactions.filter((t) => t.type === "expense").length}
+                  </p>
+                  <p className="text-xs text-gray-600">Expense Entries</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-purple-600">
+                    {new Set(transactions.map((t) => t.category)).size}
+                  </p>
+                  <p className="text-xs text-gray-600">Categories</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

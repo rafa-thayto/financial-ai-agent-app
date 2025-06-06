@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## Requirements
+- ALWAYS use PNPM as the package manager
+- use pnpm dlx instead npx
+- use pnpm
