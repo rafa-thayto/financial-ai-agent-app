@@ -19,6 +19,8 @@ import {
   MessageCircle,
   CreditCard,
   Wallet,
+  Filter,
+  X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Transaction } from "@/lib/database";
@@ -27,6 +29,7 @@ import {
   TransactionFiltersComponent,
   TransactionFilters,
 } from "@/components/filters";
+import Chat from "@/components/chat";
 
 interface DashboardStats {
   totalIncome: number;
@@ -43,13 +46,6 @@ interface CategoryData {
   count: number;
 }
 
-interface ChatMessage {
-  id: string;
-  type: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-}
-
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalIncome: 0,
@@ -64,13 +60,8 @@ export default function Dashboard() {
   );
   const [categories, setCategories] = useState<CategoryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Chat state
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [isChatLoading, setIsChatLoading] = useState(false);
   const [showChat, setShowChat] = useState(false);
-  const [filtersCollapsed, setFiltersCollapsed] = useState(true);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const [filters, setFilters] = useState<TransactionFilters>({
     search: "",
     type: "all",
@@ -134,92 +125,8 @@ export default function Dashboard() {
     }
   };
 
-  const loadChatHistory = async () => {
-    try {
-      const response = await fetch("/api/chat/history");
-      const data = await response.json();
-
-      if (data.success && data.messages.length > 0) {
-        const formattedMessages: ChatMessage[] = data.messages
-          .slice(-10) // Show last 10 messages
-          .map((msg: any) => ({
-            id: msg.id.toString(),
-            type: msg.type,
-            content: msg.content,
-            timestamp: new Date(msg.created_at),
-          }));
-        setChatMessages(formattedMessages);
-      } else {
-        setChatMessages([
-          {
-            id: "welcome",
-            type: "assistant",
-            content:
-              "Hi! Tell me about your expenses or income. For example: 'I spent $15 on lunch' or 'I earned $500 from freelancing'.",
-            timestamp: new Date(),
-          },
-        ]);
-      }
-    } catch (error) {
-      console.error("Failed to load chat history:", error);
-    }
-  };
-
-  const handleChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim() || isChatLoading) return;
-
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      type: "user",
-      content: chatInput.trim(),
-      timestamp: new Date(),
-    };
-
-    setChatMessages((prev) => [...prev, userMessage]);
-    setChatInput("");
-    setIsChatLoading(true);
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: chatInput.trim() }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        const assistantMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          type: "assistant",
-          content: data.message || "Transaction recorded successfully!",
-          timestamp: new Date(),
-        };
-        setChatMessages((prev) => [...prev, assistantMessage]);
-        // Refresh dashboard data after successful transaction
-        fetchDashboardData();
-      } else {
-        throw new Error(data.error || "Failed to process message");
-      }
-    } catch (error) {
-      const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: "assistant",
-        content: `Sorry, I encountered an error: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        timestamp: new Date(),
-      };
-      setChatMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsChatLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchDashboardData();
-    loadChatHistory();
   }, []);
 
   // Filter transactions based on current filters
@@ -561,62 +468,7 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {showChat && (
-                <>
-                  <div className="h-64 overflow-y-auto space-y-3 p-3 bg-gray-50 rounded-lg">
-                    {chatMessages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${
-                          message.type === "user"
-                            ? "justify-end"
-                            : "justify-start"
-                        }`}
-                      >
-                        <div
-                          className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
-                            message.type === "user"
-                              ? "bg-blue-500 text-white"
-                              : "bg-white border border-gray-200"
-                          }`}
-                        >
-                          <p>{message.content}</p>
-                          <p className="text-xs opacity-70 mt-1">
-                            {message.timestamp.toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    {isChatLoading && (
-                      <div className="flex justify-start">
-                        <div className="bg-white border border-gray-200 px-3 py-2 rounded-lg flex items-center space-x-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="text-sm">Processing...</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <form onSubmit={handleChatSubmit} className="flex space-x-2">
-                    <Input
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Tell me about an expense or income..."
-                      disabled={isChatLoading}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="submit"
-                      disabled={isChatLoading || !chatInput.trim()}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </form>
-                </>
-              )}
+              {showChat && <Chat onTransactionAdded={fetchDashboardData} />}
 
               {!showChat && (
                 <div className="text-center py-8 text-gray-500">

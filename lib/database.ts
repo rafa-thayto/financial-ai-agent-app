@@ -176,7 +176,7 @@ export const insertChatMessage = (
 export const getChatMessages = (limit: number = 100): ChatMessage[] => {
   const stmt = db.prepare(`
     SELECT * FROM chat_messages 
-    ORDER BY created_at ASC 
+    ORDER BY created_at DESC 
     LIMIT ?
   `);
 

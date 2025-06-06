@@ -295,6 +295,11 @@ ${
         jsonStr = jsonMatch[0];
       }
 
+      // Validate that we have a JSON-like string
+      if (!jsonStr.startsWith("{") || !jsonStr.endsWith("}")) {
+        throw new Error("Invalid JSON response from AI");
+      }
+
       const response = JSON.parse(jsonStr);
 
       // Validate response

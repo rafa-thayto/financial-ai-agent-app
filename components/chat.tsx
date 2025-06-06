@@ -18,24 +18,7 @@ import {
   Minimize2,
   X,
 } from "lucide-react";
-
-interface ChatMessage {
-  id: string;
-  type: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  agentType?:
-    | "transaction"
-    | "question"
-    | "insight"
-    | "budget_alert"
-    | "suggestion"
-    | "balance"
-    | "help";
-  suggestions?: string[];
-  requiresClarification?: boolean;
-  clarificationQuestion?: string;
-}
+import { chatStore, ChatMessage } from "@/lib/chat-store";
 
 interface ChatProps {
   onTransactionAdded?: () => void;
@@ -50,7 +33,9 @@ export default function Chat({
   onToggleFullscreen,
   showFullscreenToggle = true,
 }: ChatProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    chatStore.getMessages()
+  );
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -64,7 +49,26 @@ export default function Chat({
   }, [messages]);
 
   useEffect(() => {
-    loadChatHistory();
+    // Subscribe to chat store updates
+    const unsubscribe = chatStore.subscribe((newMessages) => {
+      console.log("Chat store updated, new message count:", newMessages.length);
+      setMessages(newMessages);
+    });
+
+    // Load history if not already loaded
+    if (!chatStore.hasLoaded()) {
+      console.log("Loading chat history...");
+      chatStore.loadHistory();
+    } else {
+      console.log(
+        "Chat history already loaded, message count:",
+        chatStore.getMessages().length
+      );
+    }
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Handle escape key to exit fullscreen
@@ -80,52 +84,6 @@ export default function Chat({
       return () => document.removeEventListener("keydown", handleEscape);
     }
   }, [isFullscreen, onToggleFullscreen]);
-
-  const loadChatHistory = async () => {
-    try {
-      const response = await fetch("/api/chat/history?limit=10");
-      const data = await response.json();
-
-      if (data.messages && data.messages.length > 0) {
-        const formattedMessages = data.messages.map((msg: any) => ({
-          id: msg.id.toString(),
-          type: msg.type,
-          content: msg.content,
-          timestamp: new Date(msg.created_at),
-          agentType: msg.context ? JSON.parse(msg.context).type : undefined,
-          suggestions: msg.context
-            ? JSON.parse(msg.context).suggestions
-            : undefined,
-        }));
-        setMessages(formattedMessages);
-      } else {
-        // Show welcome message if no history
-        setMessages([
-          {
-            id: "welcome",
-            type: "assistant",
-            content:
-              '🤖 Hi! I\'m your intelligent financial assistant. I can help you track expenses, provide insights, check your balance, and suggest budgets.\n\n💡 **Need help?** Just ask "What can you do?" for a complete overview of my capabilities!\n\n🚀 **Quick examples:**\n• "What\'s my balance?" - Get financial overview\n• "I spent $15 on lunch" - Record transaction\n• "How am I doing this month?" - Get insights\n• "Help with budgets" - Budget assistance',
-            timestamp: new Date(),
-            agentType: "help",
-          },
-        ]);
-      }
-    } catch (error) {
-      console.error("Failed to load chat history:", error);
-      // Show welcome message on error
-      setMessages([
-        {
-          id: "welcome",
-          type: "assistant",
-          content:
-            '🤖 Hi! I\'m your intelligent financial assistant. I can help you track expenses, provide insights, check your balance, and suggest budgets.\n\n💡 **Need help?** Just ask "What can you do?" for a complete overview of my capabilities!\n\n🚀 **Quick examples:**\n• "What\'s my balance?" - Get financial overview\n• "I spent $15 on lunch" - Record transaction\n• "How am I doing this month?" - Get insights\n• "Help with budgets" - Budget assistance',
-          timestamp: new Date(),
-          agentType: "help",
-        },
-      ]);
-    }
-  };
 
   const getMessageIcon = (agentType?: string) => {
     switch (agentType) {
@@ -206,7 +164,8 @@ export default function Chat({
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    console.log("Adding user message to chat store:", userMessage);
+    chatStore.addMessage(userMessage);
     setInput("");
     setIsLoading(true);
 
@@ -233,7 +192,11 @@ export default function Chat({
           clarificationQuestion: data.clarificationQuestion,
         };
 
-        setMessages((prev) => [...prev, assistantMessage]);
+        console.log(
+          "Adding assistant message to chat store:",
+          assistantMessage
+        );
+        chatStore.addMessage(assistantMessage);
 
         // Call the callback if a transaction was added
         if (data.agentType === "transaction" && onTransactionAdded) {
@@ -248,7 +211,7 @@ export default function Chat({
             data.message || "Sorry, I encountered an error. Please try again.",
           timestamp: new Date(),
         };
-        setMessages((prev) => [...prev, errorMessage]);
+        chatStore.addMessage(errorMessage);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -258,7 +221,7 @@ export default function Chat({
         content: "Sorry, I encountered an error. Please try again.",
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      chatStore.addMessage(errorMessage);
     } finally {
       setIsLoading(false);
     }
