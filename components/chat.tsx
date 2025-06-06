@@ -17,6 +17,7 @@ import {
   Maximize2,
   Minimize2,
   X,
+  ChevronDown,
 } from "lucide-react";
 import { chatStore, ChatMessage } from "@/lib/chat-store";
 
@@ -38,15 +39,60 @@ export default function Chat({
   );
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
 
+  // Simple, reliable scroll to bottom function
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      container.scrollTop = container.scrollHeight;
+    }
   };
 
+  // Check if user is near the bottom of the chat
+  const checkScrollPosition = () => {
+    if (!messagesContainerRef.current) return;
+
+    const container = messagesContainerRef.current;
+    const threshold = 50;
+    const scrollBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    const isNearBottom = scrollBottom <= threshold;
+
+    setShouldAutoScroll(isNearBottom);
+  };
+
+  // Handle scroll events to detect user scrolling
+  const handleScroll = () => {
+    if (!isUserScrolling) {
+      setIsUserScrolling(true);
+    }
+
+    checkScrollPosition();
+
+    // Clear the scrolling flag after a delay
+    const timeoutId = setTimeout(() => {
+      setIsUserScrolling(false);
+    }, 200);
+
+    return () => clearTimeout(timeoutId);
+  };
+
+  // Auto-scroll when messages change (only if user is at bottom or just sent a message)
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+
+      // Always scroll if user just sent a message OR if they're already at the bottom
+      if (lastMessage?.type === "user" || shouldAutoScroll) {
+        // Use setTimeout to ensure DOM is updated
+        setTimeout(scrollToBottom, 10);
+      }
+    }
+  }, [messages, shouldAutoScroll]);
 
   useEffect(() => {
     // Subscribe to chat store updates
@@ -165,9 +211,15 @@ export default function Chat({
     };
 
     console.log("Adding user message to chat store:", userMessage);
+
     chatStore.addMessage(userMessage);
     setInput("");
     setIsLoading(true);
+
+    // Focus the input field after sending message
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
 
     try {
       const response = await fetch("/api/chat", {
@@ -224,11 +276,19 @@ export default function Chat({
       chatStore.addMessage(errorMessage);
     } finally {
       setIsLoading(false);
+      // Ensure input stays focused even after loading is complete
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
     setInput(suggestion);
+    // Focus the input field after clicking suggestion
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
   };
 
   return (
@@ -289,9 +349,11 @@ export default function Chat({
 
       {/* Messages */}
       <div
-        className={`flex-1 overflow-y-auto space-y-2 sm:space-y-3 ${
+        className={`flex-1 overflow-y-auto space-y-2 sm:space-y-3 relative ${
           isFullscreen ? "p-4 sm:p-6" : "p-2 sm:p-3"
         }`}
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
       >
         {messages.map((message) => (
           <div
@@ -359,7 +421,21 @@ export default function Chat({
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
+
+        {/* Scroll to bottom button */}
+        {!shouldAutoScroll && messages.length > 1 && (
+          <Button
+            onClick={() => {
+              setShouldAutoScroll(true);
+              scrollToBottom();
+            }}
+            className="absolute bottom-4 right-4 h-10 w-10 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-10 bg-blue-500 hover:bg-blue-600"
+            size="sm"
+            variant="default"
+          >
+            <ChevronDown className="h-4 w-4 text-white" />
+          </Button>
+        )}
       </div>
 
       {/* Input */}
@@ -380,6 +456,7 @@ export default function Chat({
                 : "px-2 sm:px-3 py-2 text-xs sm:text-sm"
             }`}
             disabled={isLoading}
+            ref={inputRef}
           />
           <Button
             type="submit"
