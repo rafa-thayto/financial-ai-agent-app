@@ -3,7 +3,7 @@ import { getCategorySummary } from "@/lib/database";
 
 export async function GET() {
   try {
-    const categories = getCategorySummary();
+    const categories = await getCategorySummary();
 
     return NextResponse.json({
       categories,

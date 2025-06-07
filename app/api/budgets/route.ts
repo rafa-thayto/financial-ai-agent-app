@@ -1,28 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBudgets, setBudget, getCurrentMonthSpending } from "@/lib/database";
+import {
+  getBudgets,
+  setBudget,
+  getCurrentMonthSpendingByCategory,
+} from "@/lib/database";
 
 export async function GET(req: NextRequest) {
   try {
-    const budgets = getBudgets();
+    const budgets = await getBudgets();
 
     // Add current spending information to each budget
-    const budgetsWithSpending = budgets.map((budget) => {
-      const currentSpending = getCurrentMonthSpending(budget.category);
-      const percentage = (currentSpending / budget.amount) * 100;
+    const budgetsWithSpending = await Promise.all(
+      budgets.map(async (budget) => {
+        const currentSpending = await getCurrentMonthSpendingByCategory(
+          budget.category
+        );
+        const percentage = (currentSpending / budget.amount) * 100;
 
-      return {
-        ...budget,
-        currentSpending,
-        percentage: Math.round(percentage * 100) / 100,
-        remaining: budget.amount - currentSpending,
-        status:
-          percentage > 90
-            ? "over_budget"
-            : percentage > 75
-            ? "warning"
-            : "on_track",
-      };
-    });
+        return {
+          ...budget,
+          currentSpending,
+          percentage: Math.round(percentage * 100) / 100,
+          remaining: budget.amount - currentSpending,
+          status:
+            percentage > 90
+              ? "over_budget"
+              : percentage > 75
+              ? "warning"
+              : "on_track",
+        };
+      })
+    );
 
     return NextResponse.json({
       success: true,
@@ -58,12 +66,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = setBudget(category, amount, period);
+    const result = await setBudget(category, amount, period);
 
     return NextResponse.json({
       success: true,
       budget: {
-        id: result.lastInsertRowid,
+        id: result.id,
         category,
         amount,
         period,

@@ -6,9 +6,9 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "50");
 
-    const transactions = getTransactions(limit);
-    const totalIncome = getTotalByType("income");
-    const totalExpense = getTotalByType("expense");
+    const transactions = await getTransactions(limit);
+    const totalIncome = await getTotalByType("income");
+    const totalExpense = await getTotalByType("expense");
     const balance = totalIncome - totalExpense;
 
     return NextResponse.json({

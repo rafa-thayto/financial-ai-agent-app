@@ -8,6 +8,7 @@ import {
   getBudgets,
   getSpendingPatterns,
   getCurrentMonthSpending,
+  getCurrentMonthSpendingByCategory,
   getUnusualSpending,
   getBudgetForCategory,
   getSpendingPatternForCategory,
@@ -70,35 +71,31 @@ export interface AgentContext {
 
 export class FinanceAIAgent {
   private async getFinancialSummary(): Promise<FinancialSummary> {
-    const totalIncome = getTotalByType("income");
-    const totalExpenses = getTotalByType("expense");
+    const totalIncome = await getTotalByType("income");
+    const totalExpenses = await getTotalByType("expense");
     const currentBalance = totalIncome - totalExpenses;
 
     // Get current month summary
-    const now = new Date();
-    const monthlySummary = getMonthlySummary(
-      now.getFullYear(),
-      now.getMonth() + 1
-    );
+    const monthlySummary = await getMonthlySummary();
 
     return {
       totalIncome,
       totalExpenses,
       currentBalance,
-      monthlyIncome: monthlySummary.totalIncome,
-      monthlyExpenses: monthlySummary.totalExpense,
-      monthlyBalance: monthlySummary.balance,
+      monthlyIncome: monthlySummary.income,
+      monthlyExpenses: monthlySummary.expenses,
+      monthlyBalance: monthlySummary.income - monthlySummary.expenses,
       transactionCount: monthlySummary.transactionCount,
     };
   }
 
   private async getContext(): Promise<AgentContext> {
-    const recentTransactions = getTransactions(10);
-    const chatHistory = getRecentChatContext(10);
-    const spendingPatterns = getSpendingPatterns();
-    const budgets = getBudgets();
-    const unusualSpending = getUnusualSpending();
-    const currentMonthSpending = getCurrentMonthSpending();
+    const recentTransactions = await getTransactions(10);
+    const chatHistory = await getRecentChatContext(10);
+    const spendingPatterns = await getSpendingPatterns();
+    const budgets = await getBudgets();
+    const unusualSpending = await getUnusualSpending();
+    const currentMonthSpending = await getCurrentMonthSpending();
     const financialSummary = await this.getFinancialSummary();
 
     // Get user preferences
@@ -110,7 +107,7 @@ export class FinanceAIAgent {
       "default_categories",
     ];
     for (const key of prefKeys) {
-      const value = getUserPreference(key);
+      const value = await getUserPreference(key);
       if (value) userPreferences[key] = value;
     }
 
@@ -118,7 +115,7 @@ export class FinanceAIAgent {
       recentTransactions,
       chatHistory,
       spendingPatterns,
-      budgets,
+      budgets: budgets || [], // Ensure budgets is always an array
       unusualSpending,
       currentMonthSpending,
       userPreferences,
@@ -813,7 +810,7 @@ Or just ask "What can you do?" for a complete overview!`,
 
     // Budget alerts
     for (const budget of context.budgets) {
-      const spent = getCurrentMonthSpending(budget.category);
+      const spent = await getCurrentMonthSpendingByCategory(budget.category);
       const percentage = (spent / budget.amount) * 100;
 
       if (percentage > 90) {
@@ -850,7 +847,7 @@ Or just ask "What can you do?" for a complete overview!`,
       insights.push(
         `💡 Your most frequent expense category is ${
           topCategory.category
-        } (avg $${topCategory.average_amount.toFixed(2)} per transaction).`
+        } (avg $${topCategory.averageAmount.toFixed(2)} per transaction).`
       );
     }
 
@@ -869,16 +866,16 @@ Or just ask "What can you do?" for a complete overview!`,
 
     // Suggest budgets for categories without them
     for (const pattern of context.spendingPatterns) {
-      const existingBudget = getBudgetForCategory(pattern.category);
+      const existingBudget = await getBudgetForCategory(pattern.category);
       if (!existingBudget && pattern.frequency > 0.5) {
         // More than 0.5 transactions per month
         const suggestedAmount = Math.ceil(
-          pattern.average_amount * pattern.frequency * 1.2
+          pattern.averageAmount * pattern.frequency * 1.2
         ); // 20% buffer
         suggestions.push({
           category: pattern.category,
           amount: suggestedAmount,
-          reasoning: `Based on your average spending of $${pattern.average_amount.toFixed(
+          reasoning: `Based on your average spending of $${pattern.averageAmount.toFixed(
             2
           )} per transaction, ${pattern.frequency.toFixed(1)} times per month.`,
         });

@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1749222858532,
+      "tag": "0000_flowery_prima",
+      "breakpoints": true
+    }
+  ]
+}

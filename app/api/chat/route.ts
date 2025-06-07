@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Save user message to database
-    insertChatMessage({
+    await insertChatMessage({
       type: "user",
       content: message,
     });
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       case "transaction":
         if (agentResponse.transaction) {
           // Insert transaction into database
-          const result = insertTransaction({
+          const result = await insertTransaction({
             description: agentResponse.transaction.description,
             amount: agentResponse.transaction.amount,
             category: agentResponse.transaction.category.toLowerCase(),
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
           });
 
           transactionResult = {
-            id: result.lastInsertRowid,
+            id: result.id,
             ...agentResponse.transaction,
           };
 
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Save assistant response to database with context
-    insertChatMessage({
+    await insertChatMessage({
       type: "assistant",
       content: responseMessage,
       context: agentResponse.context
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
       error instanceof Error ? error.message : "Unknown error";
 
     // Save error response to database
-    insertChatMessage({
+    await insertChatMessage({
       type: "assistant",
       content: errorMessage,
     });

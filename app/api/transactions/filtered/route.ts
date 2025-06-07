@@ -21,11 +21,11 @@ export async function GET(req: NextRequest) {
 
     // Apply date filter if provided
     if (startDate && endDate) {
-      transactions = getTransactionsByDateRange(startDate, endDate);
+      transactions = await getTransactionsByDateRange(startDate, endDate);
     } else if (category) {
-      transactions = getTransactionsByCategory(category);
+      transactions = await getTransactionsByCategory(category);
     } else {
-      transactions = getTransactions(limit);
+      transactions = await getTransactions(limit);
     }
 
     // Apply additional filters

@@ -9,9 +9,9 @@ export async function GET(req: NextRequest) {
 
     let messages;
     if (type === "user") {
-      messages = getUserMessages(limit);
+      messages = await getUserMessages(limit);
     } else {
-      messages = getChatMessages(limit);
+      messages = await getChatMessages(limit);
     }
 
     return NextResponse.json({

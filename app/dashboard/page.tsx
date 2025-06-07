@@ -30,6 +30,7 @@ import {
   TransactionFilters,
 } from "@/components/filters";
 import Chat from "@/components/chat";
+import ClearDatabaseButton from "@/components/clear-database-button";
 
 interface DashboardStats {
   totalIncome: number;
@@ -205,13 +206,21 @@ export default function Dashboard() {
     <div className="container mx-auto px-4 py-8 space-y-8">
       {/* Hero Section */}
       <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold text-gray-900">
-          Financial Dashboard
-        </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Track your finances with AI-powered insights. Chat naturally about
-          your expenses and income.
-        </p>
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold text-gray-900">
+              Financial Dashboard
+            </h1>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Track your finances with AI-powered insights. Chat naturally about
+              your expenses and income.
+            </p>
+          </div>
+          <div className="flex flex-col items-end space-y-2">
+            <div className="text-xs text-gray-400 text-right">Danger Zone</div>
+            <ClearDatabaseButton />
+          </div>
+        </div>
       </div>
 
       {/* Main Stats Cards */}
